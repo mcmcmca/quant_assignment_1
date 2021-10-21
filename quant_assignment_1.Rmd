@@ -1,0 +1,41 @@
+---
+title: "assignment_1"
+author: "Rania Karamallah, MC Abbott, Alex Cardelle"
+date: "10/20/2021"
+output: 
+  html_document"
+    theme: readable
+    toc: true
+    toc_depth: 3
+    toc_float: true
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Research Question
+
+[add research question here]
+
+# Prior Research
+
+[add existing research, 2 other studies is sufficient]
+
+# Data
+
+We will be
+
+* 
+
+## Load data
+
+We’ll be using the following libraries for this exercise:
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(knitr)
+```
+
