@@ -1,5 +1,5 @@
 ---
-title: "Assignment_1"
+title: "assignment_1"
 author: "Rania Karamallah, MC Abbott, Alex Cardelle"
 date: "10/20/2021"
 output: 
