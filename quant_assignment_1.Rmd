@@ -32,11 +32,36 @@ We will be using the following data sets:
 
 ## Load data
 
-We’ll be using the following libraries for this exercise:
-
 ```{r}
 library(tidyverse)
+library(tidycensus)
 library(readxl)
 library(knitr)
+```
+
+## total population
+
+```{r, message=FALSE, results='hide'}
+census_api_key("41cce2e06e8d30d287f5edb7186f191c45d046bc")
+census <- get_decennial(geography = "state", 
+                        year = 2020,
+                        variables = c(pop = "P1_001N"),
+                        output = "wide",
+                        geometry = TRUE)
+```
+## Med Age
+
+```{r, message=FALSE, results='hide'}
+acs_age <- get_acs(geography = "state", 
+                   variables = c(med_age_ = "B01002_001"), 
+                   output = "wide")
+```
+
+## U.S. Chronic Disease Indicators: Mental Health 
+
+```{r}
+MentalHealth <- read_csv("https://raw.githubusercontent.com/mcmcmca/quant_assignment_1/main/U.S._Chronic_Disease_Indicators__Mental_Health.csv") %>%
+  filter(YearStart == "2019" & YearEnd == "2019" & StratificationCategory1 == "Overall" & DataValueUnit == "Number") %>%
+  select(LocationAbbr, DataValue, DataValueAlt, StratificationCategory1)
 ```
 
