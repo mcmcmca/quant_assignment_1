@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Research Question
 
-[add research question here]
+Do communities living in neighborhoods with high walkability scores have low rates of mental health issues?
 
 # Prior Research
 
@@ -25,9 +25,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Data
 
-We will be
+We will be using the following data sets:
 
-* 
+* Walkability Score 
+* Centers for Disease Control and Prevention: U.S. Chronic Disease Indicators: Mental Health 
 
 ## Load data
 
