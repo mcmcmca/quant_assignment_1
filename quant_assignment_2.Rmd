@@ -1,0 +1,82 @@
+---
+title: "assignment_1"
+author: "Rania Karamallah, MC Abbott, Alex Cardelle"
+date: "10/20/2021"
+output: 
+  html_document"
+    theme: readable
+    toc: true
+    toc_depth: 3
+    toc_float: true
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Research Question
+
+Do communities living in neighborhoods with high walkability scores have low rates of mental health issues?
+
+# Prior Research
+
+[add existing research, 2 other studies is sufficient]
+
+# Data
+
+We will be using the following data sets:
+
+* United States Environmental Projection Agency: Smart Location Mapping, National Walkability Index
+* Centers for Disease Control and Prevention: U.S. Chronic Disease Indicators: Mental Health 
+
+# Variables for Analysis
+
+* County (categorical)
+* Block Group (categorical)
+* Combined Statistical Area (categorical)
+* Total Number of Workers in a Block Group (continuous)
+* Percentage of Low Wage Earners (continuous)
+* Walkability Score (continuous)
+* [anxiety]
+
+## Load data
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+library(readxl)
+library(knitr)
+```
+
+## Med Age
+
+```{r, message=FALSE, results='hide'}
+acs_age <- get_acs(geography = "state", 
+                   variables = c(med_age_ = "B01002_001"), 
+                   output = "wide")
+```
+
+## U.S. Chronic Disease Indicators: Mental Health 
+
+From USCDC: Poor mental health interferes with social functioning, is associated with health behavior, and should be monitored as an overall indicator of chronic disease burden. Research has shown that poor mental health is a major source of distress, disability, and social burden.   Furthermore, poor mental health can interfere with social functioning and negatively impact physical well-being as well as the practice of health-promoting behaviors.
+
+```{r}
+MentalHealth <- read_csv("https://raw.githubusercontent.com/mcmcmca/quant_assignment_1/main/U.S._Chronic_Disease_Indicators__Mental_Health.csv") %>%
+  filter(YearStart == "2019" & YearEnd == "2019" & StratificationCategory1 == "Overall" & DataValueUnit == "Number") %>%
+  select(LocationAbbr, DataValue, DataValueAlt, StratificationCategory1)
+```
+
+## Walkability
+
+From USEPA: The National Walkability Index provides walkability scores based on a simple formula that ranks selected indicators from the Smart Location Database that have been demonstrated to affect the propensity of walk trips. Currently, the National Walkability Index dataset ranks each block group relative to all other block groups in the United States, but individuals can use downloadable data and the "how-to" document to construct an index for a smaller universe of block groups, like a state, metropolitan area, or city.
+
+```{r}
+
+Walkability <- read_csv("data/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")  %>%
+
+  filter(STATEFP == "25") %>%
+  select(STATEFP, COUNTYFP, TRACTCE, BLKGRPCE, CSA, CSA_Name, CBSA, CBSA_Name, CBSA_POP, P_WrkAge, AutoOwn0, Workers, R_LowWageWk, R_MedWageWk, R_HiWageWk, R_PCTLOWWAGE, NatWalkInd)
+
+```
+
