@@ -49,11 +49,11 @@ library(readxl)
 library(knitr)
 ```
 
-## Med Age
+## Means of Transportation for People with a Car
 
 ```{r, message=FALSE, results='hide'}
-acs_age <- get_acs(geography = "state", 
-                   variables = c(med_age_ = "B01002_001"), 
+acs_transit <- get_acs(geography = "tract", county = "Suffolk", state = "MA", 
+                   variables = c(transit_car = "B08141_003"), 
                    output = "wide")
 ```
 
@@ -62,9 +62,7 @@ acs_age <- get_acs(geography = "state",
 From USCDC: Poor mental health interferes with social functioning, is associated with health behavior, and should be monitored as an overall indicator of chronic disease burden. Research has shown that poor mental health is a major source of distress, disability, and social burden.   Furthermore, poor mental health can interfere with social functioning and negatively impact physical well-being as well as the practice of health-promoting behaviors.
 
 ```{r}
-MentalHealth <- read_csv("https://raw.githubusercontent.com/mcmcmca/quant_assignment_1/main/U.S._Chronic_Disease_Indicators__Mental_Health.csv") %>%
-  filter(YearStart == "2019" & YearEnd == "2019" & StratificationCategory1 == "Overall" & DataValueUnit == "Number") %>%
-  select(LocationAbbr, DataValue, DataValueAlt, StratificationCategory1)
+SocialVulnerability <- read_csv("data/social-vulnerability.csv")
 ```
 
 ## Walkability
