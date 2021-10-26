@@ -2,12 +2,7 @@
 title: "assignment_1"
 author: "Rania Karamallah, MC Abbott, Alex Cardelle"
 date: "10/20/2021"
-output: 
-  html_document"
-    theme: readable
-    toc: true
-    toc_depth: 3
-    toc_float: true
+
 
 ---
 
@@ -17,28 +12,28 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Research Question
 
-Do communities living in neighborhoods with high walkability scores have low rates of mental health issues?
+Do neighborhoods with higher walkability scores lead to reduced commuting via car?
 
 # Prior Research
 
-[add existing research, 2 other studies is sufficient]
+Riggs and Sethi (2020), in examining a quantified, indexed version of "walkability", have determined that neighborhoods scoring high in this category do show increased multimodal/alternative transportation use (namely -- walking, cycling, or transit). With more specificity, Watson et. al (2020) provide a national-level overview that confirms a strong link between high walkability scores and walking itself as a mode of commuting to work throughout the urban areas of the United States. Our research question seeks to confirm these findings through selected census tracts.
 
 # Data
 
 We will be using the following data sets:
 
-* United States Environmental Projection Agency: Smart Location Mapping, National Walkability Index
+* United States Census Data Means of Transportation for People with a Car
 * Centers for Disease Control and Prevention: U.S. Chronic Disease Indicators: Mental Health 
 
 # Variables for Analysis
 
 * County (categorical)
-* Block Group (categorical)
+* Census Tract (categorical)
 * Combined Statistical Area (categorical)
 * Total Number of Workers in a Block Group (continuous)
 * Percentage of Low Wage Earners (continuous)
 * Walkability Score (continuous)
-* [anxiety]
+
 
 ## Load data
 
@@ -51,18 +46,21 @@ library(knitr)
 
 ## Means of Transportation for People with a Car
 
+Households with access to vehicles, in combination with where people commute to and from, and whether they commute with a personal vehicle.
+
 ```{r, message=FALSE, results='hide'}
+census_api_key("41cce2e06e8d30d287f5edb7186f191c45d046bc")
 acs_transit <- get_acs(geography = "tract", county = "Suffolk", state = "MA", 
                    variables = c(transit_car = "B08141_003"), 
                    output = "wide")
+                    
 ```
+## Med Age
 
-## U.S. Chronic Disease Indicators: Mental Health 
-
-From USCDC: Poor mental health interferes with social functioning, is associated with health behavior, and should be monitored as an overall indicator of chronic disease burden. Research has shown that poor mental health is a major source of distress, disability, and social burden.   Furthermore, poor mental health can interfere with social functioning and negatively impact physical well-being as well as the practice of health-promoting behaviors.
-
-```{r}
-SocialVulnerability <- read_csv("data/social-vulnerability.csv")
+```{r, message=FALSE, results='hide'}
+acs_age <- get_acs(geography = "tract", county = "Suffolk", state = "MA", 
+                   variables = c(med_age_ = "B01002_001"), 
+                   output = "wide")
 ```
 
 ## Walkability
@@ -71,10 +69,20 @@ From USEPA: The National Walkability Index provides walkability scores based on 
 
 ```{r}
 
-Walkability <- read_csv("data/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")  %>%
+Walkability <- read_csv("https://raw.githubusercontent.com/mcmcmca/quant_assignment_1/main/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")  %>%
 
   filter(STATEFP == "25") %>%
   select(STATEFP, COUNTYFP, TRACTCE, BLKGRPCE, CSA, CSA_Name, CBSA, CBSA_Name, CBSA_POP, P_WrkAge, AutoOwn0, Workers, R_LowWageWk, R_MedWageWk, R_HiWageWk, R_PCTLOWWAGE, NatWalkInd)
 
+```
+
+## Assembling the datasets 
+
+```{r}
+#data <- left_join(census, GEOID) %>% 
+#  left_join(Walkability) %>%
+#  left_join(acs_transit) %>%
+
+#kable(head(data))
 ```
 
