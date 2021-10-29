@@ -2,8 +2,12 @@
 title: "assignment_1"
 author: "Rania Karamallah, MC Abbott, Alex Cardelle"
 date: "10/20/2021"
-
-
+output: 
+  html_document"
+    theme: readable
+    toc: true
+    toc_depth: 3
+    toc_float: true
 ---
 
 ```{r setup, include=FALSE}
@@ -22,18 +26,19 @@ Riggs and Sethi (2020), in examining a quantified, indexed version of "walkabili
 
 We will be using the following data sets:
 
+* United States Environmental Projection Agency: Smart Location Mapping, National Walkability Index
 * United States Census Data Means of Transportation for People with a Car
 * Centers for Disease Control and Prevention: U.S. Chronic Disease Indicators: Mental Health 
 
 # Variables for Analysis
 
 * County (categorical)
+* Block Group (categorical)
 * Census Tract (categorical)
 * Combined Statistical Area (categorical)
 * Total Number of Workers in a Block Group (continuous)
 * Percentage of Low Wage Earners (continuous)
 * Walkability Score (continuous)
-
 
 ## Load data
 
@@ -46,21 +51,57 @@ library(knitr)
 
 ## Means of Transportation for People with a Car
 
-Households with access to vehicles, in combination with where people commute to and from, and whether they commute with a personal vehicle.
+```{r, message = FALSE, results = FALSE, warning = FALSE}
 
-```{r, message=FALSE, results='hide'}
-census_api_key("41cce2e06e8d30d287f5edb7186f191c45d046bc")
-acs_transit <- get_acs(geography = "tract", county = "Suffolk", state = "MA", 
-                   variables = c(transit_car = "B08141_003"), 
-                   output = "wide")
-                    
+all_states <- c(state.abb)
+
+acs_transport <- get_acs(geography = "tract", 
+                        year = 2020,
+                        variables = c(transport_any = "B08301_001",
+                                      transport_walk = "B08301_019",
+                                      transport_car = "B08301_002",
+                                      transport_public = "B08301_010",
+                                      transport_bike = "B08301_018",
+                                      transport_taxi = "B08301_016",
+                                      transport_motorcycle = "B08301_018",
+                                      transport_other = "B08301_020"),
+                        state = "MA",
+                        county = "Suffolk",
+                        output = "wide",
+                        geometry = FALSE) %>%
+  mutate(pct_walk = transport_walk / transport_any) %>%
+  mutate(pct_car = transport_car / transport_any) %>%
+  mutate(pct_public = transport_public / transport_any) %>%
+  mutate(pct_bike = transport_bike / transport_any) %>%
+  mutate(pct_taxi = transport_taxi / transport_any) %>%
+  mutate(pct_motorcycle = transport_motorcycle / transport_any) %>%
+  mutate(pct_other = transport_other / transport_any)%>%
+  select(GEOID, pct_walk, pct_car, pct_public, pct_bike, pct_taxi, pct_motorcycle, pct_other)
+  
 ```
-## Med Age
 
-```{r, message=FALSE, results='hide'}
-acs_age <- get_acs(geography = "tract", county = "Suffolk", state = "MA", 
-                   variables = c(med_age_ = "B01002_001"), 
-                   output = "wide")
+## U.S. Chronic Disease Indicators: Mental Health 
+
+From USCDC: Poor mental health interferes with social functioning, is associated with health behavior, and should be monitored as an overall indicator of chronic disease burden. Research has shown that poor mental health is a major source of distress, disability, and social burden.   Furthermore, poor mental health can interfere with social functioning and negatively impact physical well-being as well as the practice of health-promoting behaviors.
+
+
+```{r}
+Mental_Health <- read_csv('data/PLACES__Local_Data_for_Better_Health__Census_Tract_Data_2020_release.csv') %>%
+  filter(Year == 2018) %>%
+  filter(Short_Question_Text == "Mental Health") %>%
+  rename(GEOID = LocationID) %>%
+  group_by(GEOID) %>%
+  rename(pct_mental = Data_Value) %>%
+  select(GEOID, pct_mental, Data_Value_Unit)
+
+Asthma <- read_csv('data/PLACES__Local_Data_for_Better_Health__Census_Tract_Data_2020_release.csv') %>%
+  filter(Year == 2018) %>%
+  filter(Short_Question_Text == "Asthma") %>%
+  rename(GEOID = LocationID) %>%
+  group_by(GEOID) %>%
+  rename(pct_asthma = Data_Value) %>%
+  select(GEOID, pct_asthma, Data_Value_Unit)
+
 ```
 
 ## Walkability
@@ -68,8 +109,9 @@ acs_age <- get_acs(geography = "tract", county = "Suffolk", state = "MA",
 From USEPA: The National Walkability Index provides walkability scores based on a simple formula that ranks selected indicators from the Smart Location Database that have been demonstrated to affect the propensity of walk trips. Currently, the National Walkability Index dataset ranks each block group relative to all other block groups in the United States, but individuals can use downloadable data and the "how-to" document to construct an index for a smaller universe of block groups, like a state, metropolitan area, or city.
 
 ```{r}
+Walkability <- read_csv("data/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")  %>%
 
-Walkability <- read_csv("https://raw.githubusercontent.com/mcmcmca/quant_assignment_1/main/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")  %>%
+  Walkability <- read_csv("https://raw.githubusercontent.com/mcmcmca/quant_assignment_1/main/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")  %>%
 
   filter(STATEFP == "25") %>%
   select(STATEFP, COUNTYFP, TRACTCE, BLKGRPCE, CSA, CSA_Name, CBSA, CBSA_Name, CBSA_POP, P_WrkAge, AutoOwn0, Workers, R_LowWageWk, R_MedWageWk, R_HiWageWk, R_PCTLOWWAGE, NatWalkInd)
@@ -78,11 +120,9 @@ Walkability <- read_csv("https://raw.githubusercontent.com/mcmcmca/quant_assignm
 
 ## Assembling the datasets 
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 #data <- left_join(census, GEOID) %>% 
-#  left_join(Walkability) %>%
-#  left_join(acs_transit) %>%
+#  left_join(acs_transport) %>%
 
 #kable(head(data))
 ```
-
