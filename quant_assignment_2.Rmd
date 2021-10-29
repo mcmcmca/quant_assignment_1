@@ -58,7 +58,7 @@ Source: American Community Survey (2019)
 ```{r, message = FALSE, results = FALSE, warning = FALSE}
 
 acs_transport <- get_acs(geography = "tract", 
-                        year = 2020,
+                        year = 2019,
                         variables = c(transport_any = "B08301_001",
                                       transport_walk = "B08301_019",
                                       transport_car = "B08301_002",
