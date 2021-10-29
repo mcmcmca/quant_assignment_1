@@ -16,9 +16,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Research Question
 
-Do neighborhoods with higher walkability scores lead to reduced commuting via car?
+Is there a relationship between mode of transportation and different health indicators?
 
-# Prior Research
+# Prior Research -- UPDATE
 
 Riggs and Sethi (2020), in examining a quantified, indexed version of "walkability", have determined that neighborhoods scoring high in this category do show increased multimodal/alternative transportation use (namely -- walking, cycling, or transit). With more specificity, Watson et. al (2020) provide a national-level overview that confirms a strong link between high walkability scores and walking itself as a mode of commuting to work throughout the urban areas of the United States. Our research question seeks to confirm these findings through selected census tracts.
 
@@ -27,18 +27,18 @@ Riggs and Sethi (2020), in examining a quantified, indexed version of "walkabili
 We will be using the following data sets:
 
 * United States Environmental Projection Agency: Smart Location Mapping, National Walkability Index
-* United States Census Data Means of Transportation for People with a Car
-* Centers for Disease Control and Prevention: U.S. Chronic Disease Indicators: Mental Health 
+* United States American Community Survey: Mode of Transportation
+* Centers for Disease Control and Prevention: U.S. Chronic Disease Indicators
 
 # Variables for Analysis
 
-* County (categorical)
-* Block Group (categorical)
-* Census Tract (categorical)
-* Combined Statistical Area (categorical)
-* Total Number of Workers in a Block Group (continuous)
-* Percentage of Low Wage Earners (continuous)
-* Walkability Score (continuous)
+* Population Percentage with Current Mental Health Issues (continuous)
+* Population Percentage with Obesity (continuous)
+* Population Percentage with Current Asthma (continuous)
+* Mode of Transportation (continuous)
+* Walkability Index Score (continuous)
+* Urban vs. Rural (categorical) -- TO BE ADDED
+* +1 (categorical) -- TO BE ADDED
 
 ## Load data
 
@@ -49,11 +49,13 @@ library(readxl)
 library(knitr)
 ```
 
-## Means of Transportation for People with a Car
+## Mode of Transportation
+
+Source: American Community Survey (2019)
+
+* Mode of Transportation (continuous)
 
 ```{r, message = FALSE, results = FALSE, warning = FALSE}
-
-all_states <- c(state.abb)
 
 acs_transport <- get_acs(geography = "tract", 
                         year = 2020,
@@ -80,15 +82,19 @@ acs_transport <- get_acs(geography = "tract",
   
 ```
 
-## U.S. Chronic Disease Indicators: Mental Health 
+## U.S. Chronic Disease Indicators
 
-From USCDC: Poor mental health interferes with social functioning, is associated with health behavior, and should be monitored as an overall indicator of chronic disease burden. Research has shown that poor mental health is a major source of distress, disability, and social burden.   Furthermore, poor mental health can interfere with social functioning and negatively impact physical well-being as well as the practice of health-promoting behaviors.
+Source: United States Center for Disease Control
 
+* Population Percentage with Current Mental Health Issues (continuous)
+* Population Percentage with Obesity (continuous)
+* Population Percentage with Current Asthma (continuous)
 
 ```{r}
 Mental_Health <- read_csv('data/PLACES__Local_Data_for_Better_Health__Census_Tract_Data_2020_release.csv') %>%
   filter(Year == 2018) %>%
   filter(Short_Question_Text == "Mental Health") %>%
+  filter(StateAbbr == "MA") %>%
   rename(GEOID = LocationID) %>%
   group_by(GEOID) %>%
   rename(pct_mental = Data_Value) %>%
@@ -96,11 +102,21 @@ Mental_Health <- read_csv('data/PLACES__Local_Data_for_Better_Health__Census_Tra
 
 Asthma <- read_csv('data/PLACES__Local_Data_for_Better_Health__Census_Tract_Data_2020_release.csv') %>%
   filter(Year == 2018) %>%
-  filter(Short_Question_Text == "Asthma") %>%
+  filter(Short_Question_Text == "Current Asthma") %>%
+  filter(StateAbbr == "MA") %>%
   rename(GEOID = LocationID) %>%
   group_by(GEOID) %>%
   rename(pct_asthma = Data_Value) %>%
   select(GEOID, pct_asthma, Data_Value_Unit)
+
+Obesity <- read_csv('data/PLACES__Local_Data_for_Better_Health__Census_Tract_Data_2020_release.csv') %>%
+  filter(Year == 2018) %>%
+  filter(Short_Question_Text == "Obesity") %>%
+  filter(StateAbbr == "MA") %>%
+  rename(GEOID = LocationID) %>%
+  group_by(GEOID) %>%
+  rename(pct_obesity = Data_Value) %>%
+  select(GEOID, pct_obesity, Data_Value_Unit)
 
 ```
 
@@ -111,10 +127,8 @@ From USEPA: The National Walkability Index provides walkability scores based on 
 ```{r}
 Walkability <- read_csv("data/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")  %>%
 
-  Walkability <- read_csv("https://raw.githubusercontent.com/mcmcmca/quant_assignment_1/main/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv")  %>%
-
   filter(STATEFP == "25") %>%
-  select(STATEFP, COUNTYFP, TRACTCE, BLKGRPCE, CSA, CSA_Name, CBSA, CBSA_Name, CBSA_POP, P_WrkAge, AutoOwn0, Workers, R_LowWageWk, R_MedWageWk, R_HiWageWk, R_PCTLOWWAGE, NatWalkInd)
+  select(GEOID10, NatWalkInd)
 
 ```
 
@@ -123,6 +137,8 @@ Walkability <- read_csv("data/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv") 
 ```{r, message = FALSE, warning = FALSE}
 #data <- left_join(census, GEOID) %>% 
 #  left_join(acs_transport) %>%
+#  left_join(Mental_Health) %>%
+#  left_join(Asthma) %>%
 
 #kable(head(data))
 ```
