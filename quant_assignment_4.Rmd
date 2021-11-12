@@ -1,7 +1,7 @@
 ---
-title: "quant_assignment_3"
+title: "quant_assignment_4"
 author: "Rania Karamallah, MC Abbott, Alex Cardelle"
-date: "11/8/2021"
+date: "11/12/2021"
 output: 
   rmdformats::downcute
 ---
@@ -167,14 +167,22 @@ Source: United States Environmental Protection Agency: National Walkability Inde
 * Walkability Index Score
 
 ```{r}
-Walkability <- st_read(dsn = "Natl_WI.gdb") %>%
-  filter(STATEFP == "25") %>%
-  select(GEOID10, NatWalkInd, TotPop) %>%
-  mutate(tract = substr(GEOID10, 1, 11)) %>%
-  st_set_geometry(NULL) %>%
-  group_by(tract) %>%
-  summarise(avg_walk_ind = weighted.mean(NatWalkInd, TotPop)) %>%
-  rename(GEOID = tract)
+# The following code was used to created the original "Walkability" file, it was then re-loaded as a .shp file
+# This was done to reduce the file size and because the .shp file doesn't except "avg_w_ind" as a column name (too long apparently).
+
+# Walkability <- st_read(dsn = "Natl_WI.gdb") %>%
+#   filter(STATEFP == "25") %>%
+#   select(GEOID10, NatWalkInd, TotPop) %>%
+#   mutate(tract = substr(GEOID10, 1, 11)) %>%
+#   st_set_geometry(NULL) %>%
+#   group_by(tract) %>%
+#   summarise(avg_w_ind = weighted.mean(NatWalkInd, TotPop)) %>%
+#   rename(GEOID = tract)
+# 
+# st_write(Walkability, "data/Walkability_file.shp")
+# print(Walkability)
+
+Walkability <- st_read(dsn = "data/Walkability_file.dbf")
 ```
 
 # Assembling the datasets 
@@ -186,7 +194,7 @@ data <- left_join(acs_transport, Walkability) %>%
   left_join(Mental_Health) %>%
   left_join(race_majority) %>%
   left_join(sex_majority) %>%
-  select(GEOID, avg_walk_ind, pct_walk, pct_car, pct_public, pct_bike, pct_taxi, pct_motorcycle, pct_other, pct_asthma, pct_mental, pct_obesity, white_majority, female_majority)
+  select(GEOID, avg_w_ind, pct_walk, pct_car, pct_public, pct_bike, pct_taxi, pct_motorcycle, pct_other, pct_asthma, pct_mental, pct_obesity, white_majority, female_majority)
 
 kable(head(data))
 ```
@@ -197,7 +205,7 @@ kable(head(data))
 asthma_t_test <- t.test(data$pct_asthma)
 obesity_t_test <- t.test(data$pct_obesity)
 mental_t_test <- t.test(data$pct_mental)
-walkability_t_test <- t.test(data$avg_walk_ind)
+walkability_t_test <- t.test(data$avg_w_ind)
 mwalk_t_test <- t.test(data$pct_walk)
 mcar_t_test <- t.test(data$pct_car)
 mpublic_t_test <- t.test(data$pct_public)
@@ -388,7 +396,7 @@ cat_summary_sex <- tibble(`Majority Sex` =
 kable(cat_summary_sex, digits = 2)
 
 ```
-# Assignment 3 - Regressions
+# Assignment  - Bivariate regression
 
 In trying to understand the importance of walkability to health and commuting patterns, we ran a regression analysis for correlation using 'cor.test' and 'age_model', then plotted the data on a graph. Our dependent variable is "walkability" provided through a Massachusetts Census Tracts' walkability score. Our independent variables are divided into two fields: health metrics and commuting choice. For health metrics, we are using the percent of the population afflicted with asthma, obesity, or mental health issues respectively. For commuting choice, we're using the percent of the population that commutes via walking, biking, public transit, or car respectively.
 
@@ -397,9 +405,9 @@ In trying to understand the importance of walkability to health and commuting pa
 ## Walkability and Asthma
 ```{r walkability and asthma}
 
-cor.test(~ avg_walk_ind + pct_asthma, data = data)
+cor.test(~ avg_w_ind + pct_asthma, data = data)
 
-age_model <- lm(avg_walk_ind ~ pct_asthma, data = data)
+age_model <- lm(avg_w_ind ~ pct_asthma, data = data)
 
 summary(age_model)
 
@@ -408,8 +416,8 @@ summary(age_model)
 ```{r plot the walkability/asthma, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
 
 ggplot(data) +
-  geom_point(aes(x = avg_walk_ind, y = pct_asthma)) +
-  geom_smooth(aes(x = avg_walk_ind, y = pct_asthma), color = 'red', method = 'lm', se = FALSE) +
+  geom_point(aes(x = avg_w_ind, y = pct_asthma)) +
+  geom_smooth(aes(x = avg_w_ind, y = pct_asthma), color = 'red', method = 'lm', se = FALSE) +
   labs(x = "Walkability Score", 
        y = "Percent of Pop. with Asthma", 
        title = "Regression: Walkability Score and Asthma Rates, Correlation: 0.29")
@@ -421,9 +429,9 @@ For **asthma**, the 95-percent confidence interval for the correlation does not 
 ## Walkability and Obesity
 ```{r walkability and obesity}
 
-cor.test(~ avg_walk_ind + pct_obesity, data = data)
+cor.test(~ avg_w_ind + pct_obesity, data = data)
 
-age_model <- lm(avg_walk_ind ~ pct_obesity, data = data)
+age_model <- lm(avg_w_ind ~ pct_obesity, data = data)
 
 summary(age_model)
 
@@ -431,8 +439,8 @@ summary(age_model)
 
 ```{r plot the walkability/obesity, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
 ggplot(data) +
-  geom_point(aes(x = avg_walk_ind, y = pct_obesity)) +
-  geom_smooth(aes(x = avg_walk_ind, y = pct_obesity), color = 'red', method = 'lm', se = FALSE) +
+  geom_point(aes(x = avg_w_ind, y = pct_obesity)) +
+  geom_smooth(aes(x = avg_w_ind, y = pct_obesity), color = 'red', method = 'lm', se = FALSE) +
   labs(x = "Walkability Score", 
        y = "Percent of Pop. with Obesity", 
        title = "Regression: Walkability Score and Obesity Rates, Correlation: -0.01")
@@ -443,9 +451,9 @@ For **obesity**, the 95-percent confidence interval for the correlation includes
 ## Walkability and Mental Health
 ```{r walkability and mental}
 
-cor.test(~ avg_walk_ind + pct_mental, data = data)
+cor.test(~ avg_w_ind + pct_mental, data = data)
 
-age_model <- lm(avg_walk_ind ~ pct_mental, data = data)
+age_model <- lm(avg_w_ind ~ pct_mental, data = data)
 
 summary(age_model)
 
@@ -453,8 +461,8 @@ summary(age_model)
 
 ```{r plot the walkability/mental, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
 ggplot(data) +
-  geom_point(aes(x = avg_walk_ind, y = pct_mental)) +
-  geom_smooth(aes(x = avg_walk_ind, y = pct_mental), color = 'red', method = 'lm', se = FALSE) +
+  geom_point(aes(x = avg_w_ind, y = pct_mental)) +
+  geom_smooth(aes(x = avg_w_ind, y = pct_mental), color = 'red', method = 'lm', se = FALSE) +
   labs(x = "Walkability Score", 
        y = "Percent of Pop. with Mental Health Issues", 
        title = "Regression: Walkability Score and Mental Health Rates, Correlation: 0.33")
@@ -467,9 +475,9 @@ For **mental health**, the 95-percent confidence interval for the correlation do
 ## Walkability and Commuting by Walking
 ```{r walkability and commuting by walk}
 
-cor.test(~ avg_walk_ind + pct_walk, data = data)
+cor.test(~ avg_w_ind + pct_walk, data = data)
 
-age_model <- lm(avg_walk_ind ~ pct_walk, data = data)
+age_model <- lm(avg_w_ind ~ pct_walk, data = data)
 
 summary(age_model)
 
@@ -477,8 +485,8 @@ summary(age_model)
 
 ```{r plot the walkability/walk, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
 ggplot(data) +
-  geom_point(aes(x = avg_walk_ind, y = pct_walk)) +
-  geom_smooth(aes(x = avg_walk_ind, y = pct_walk), color = 'red', method = 'lm', se = FALSE) +
+  geom_point(aes(x = avg_w_ind, y = pct_walk)) +
+  geom_smooth(aes(x = avg_w_ind, y = pct_walk), color = 'red', method = 'lm', se = FALSE) +
   labs(x = "Walkability Score", 
        y = "Percent of Pop. Commuting Via Walking", 
        title = "Regression: Walkability Score and Walking Use, Correlation: 0.39")
@@ -489,9 +497,9 @@ For **commuting by walking**, the 95-percent confidence interval for the correla
 ## Walkability and Commuting by Biking
 ```{r walkability and commuting by biking}
 
-cor.test(~ avg_walk_ind + pct_bike, data = data)
+cor.test(~ avg_w_ind + pct_bike, data = data)
 
-age_model <- lm(avg_walk_ind ~ pct_bike, data = data)
+age_model <- lm(avg_w_ind ~ pct_bike, data = data)
 
 summary(age_model)
 
@@ -499,8 +507,8 @@ summary(age_model)
 
 ```{r plot the walkability/bike, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
 ggplot(data) +
-  geom_point(aes(x = avg_walk_ind, y = pct_bike)) +
-  geom_smooth(aes(x = avg_walk_ind, y = pct_bike), color = 'blue', method = 'lm', se = FALSE) +
+  geom_point(aes(x = avg_w_ind, y = pct_bike)) +
+  geom_smooth(aes(x = avg_w_ind, y = pct_bike), color = 'blue', method = 'lm', se = FALSE) +
   labs(x = "Walkability Score", 
        y = "Percent of Pop. Commuting Via Biking", 
        title = "Regression: Walkability Score and Biking Use, Correlation: 0.34")
@@ -511,9 +519,9 @@ For **commuting by biking**, the 95-percent confidence interval for the correlat
 ## Walkability and Commuting by Public Transit
 ```{r walkability and commuting by transit}
 
-cor.test(~ avg_walk_ind + pct_public, data = data)
+cor.test(~ avg_w_ind + pct_public, data = data)
 
-age_model <- lm(avg_walk_ind ~ pct_public, data = data)
+age_model <- lm(avg_w_ind ~ pct_public, data = data)
 
 summary(age_model)
 
@@ -521,8 +529,8 @@ summary(age_model)
 
 ```{r plot the walkability/transit, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
 ggplot(data) +
-  geom_point(aes(x = avg_walk_ind, y = pct_public)) +
-  geom_smooth(aes(x = avg_walk_ind, y = pct_public), color = 'green', method = 'lm', se = FALSE) +
+  geom_point(aes(x = avg_w_ind, y = pct_public)) +
+  geom_smooth(aes(x = avg_w_ind, y = pct_public), color = 'green', method = 'lm', se = FALSE) +
   labs(x = "Walkability Score", 
        y = "Percent of Pop. Commuting Via Transit", 
        title = "Regression: Walkability Score and Transit Use, Correlation: 0.46")
@@ -533,9 +541,9 @@ For **commuting by transit**, the 95-percent confidence interval for the correla
 ## Walkability and Commuting by Car
 ```{r walkability and commuting by car}
 
-cor.test(~ avg_walk_ind + pct_car, data = data)
+cor.test(~ avg_w_ind + pct_car, data = data)
 
-age_model <- lm(avg_walk_ind ~ pct_car, data = data)
+age_model <- lm(avg_w_ind ~ pct_car, data = data)
 
 summary(age_model)
 
@@ -543,14 +551,70 @@ summary(age_model)
 
 ```{r plot the walkability/car, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
 ggplot(data) +
-  geom_point(aes(x = avg_walk_ind, y = pct_car)) +
-  geom_smooth(aes(x = avg_walk_ind, y = pct_car), color = 'orange', method = 'lm', se = FALSE) +
+  geom_point(aes(x = avg_w_ind, y = pct_car)) +
+  geom_smooth(aes(x = avg_w_ind, y = pct_car), color = 'orange', method = 'lm', se = FALSE) +
   labs(x = "Walkability Score", 
        y = "Percent of Pop. Commuting Via Car", 
        title = "Regression: Walkability Score and Car Use, Correlation: -0.51")
 ```
 
 For **commuting by car**, the 95-percent confidence interval for the correlation does not include zero - all values in the interval are negative. Additionally, this finding is supported by the regression, with an R-squared value of 0.26 and a p-value of less than 0.05. This means we can say with 95-percent confidence that lower commuting rates by car are associated with more walkable census tracts and that this finding is _**statistically significant**_.
+
+## Categorical variables
+
+### Sex_majority
+```{r}
+sex_model <- lm(avg_w_ind ~ female_majority, data = data)
+
+summary(sex_model)
+```
+
+```{r plot the walkability/female_majority, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
+ggplot(data) +
+  geom_point(aes(x = avg_w_ind, y = female_majority)) +
+  geom_smooth(aes(x = avg_w_ind, y = female_majority), color = 'orange', method = 'lm', se = FALSE) +
+  labs(x = "Walkability Score", 
+       y = "Percent of Pop. that identify as female", 
+       title = "Walkability Score by Sex")
+```
+
+### Race_majority
+```{r}
+race_model <- lm(avg_w_ind ~ white_majority, data = data)
+
+summary(race_model)
+```
+```{r plot the walkability/white_majority, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
+ggplot(data) +
+  geom_point(aes(x = avg_w_ind, y = white_majority)) +
+  geom_smooth(aes(x = avg_w_ind, y = white_majority), color = 'orange', method = 'lm', se = FALSE) +
+  labs(x = "Walkability Score", 
+       y = "Percent of Pop. that identify as White", 
+       title = "Walkability Score by Race")
+```
+Although the sex_category has is not statistically significant, however, it shows that census tracts with a higher female_majority increase walkability score for the census tract.
+
+We can also see that Race_majority is statistically significant, census tracts with higher non-majority white race increase the walkability score for the census tract.
+
+
+# Assignment 4 - Multivariate regression
+
+```{r}
+full_model <- lm(avg_w_ind ~ pct_asthma + pct_obesity + pct_mental + pct_walk + pct_bike + pct_public + pct_car + female_majority + white_majority, data)
+
+summary(full_model)
+```
+
+In our bivariate regression, walkability scores increases in census tracts that have higher numbers of the following medical conditions: Asthma and mental health issues, also increases with a higher percentage of the population who uses the following modes of transit: Walk, Bike, Public Transit. Walkability scores also increase with an increased population who identifies as non-majority white. 
+
+When we control for all medical conditions variables (asthma, obesity, mental issues) and all different modes of transportation variables (walk, bike, public transit, car), we found that the percentage of population that commutes by bikes contributes by 33.52615 positively to the walkability score of the census tract, making it the most significant category. Similarly, the population that uses public transit contributes to the increase of walkability in a census tract by 11.57760. Regarding medical conditions, populations with high mental issues contribute significantly to the walkability of the census tract by 0.476.
+
+Although the female_majorty variant was not significant as a bivariant, combined with other variants in the multivariant regression, it increases in significance. Non_female majority census tracts decrease the walkability score -0.63827
+
+This explains that census tracts with access to public transit, walking routes, and bike paths, with population, that with majority non-white race, female majority, that report a higher number of mental issues and asthma are the most significant variants to increase walkability scores.
+
+Overall, our model explains about 40 percent of the variation in walkability-level can be explained with these variables.
+ 
 
 # Resources
 
@@ -565,30 +629,3 @@ https://pubmed.ncbi.nlm.nih.gov/32389677/
 Riggs, William Warren and Suresh Andrew Sethi, "Multimodal travel behaviour, walkability indices, and social mobility: how neighbourhood walkability, income and household characteristics guide walking, biking & transit decisions". 2020.
 https://www.researchgate.net/publication/344647424_Multimodal_travel_behaviour_walkability_indices_and_social_mobility_how_neighbourhood_walkability_income_and_household_characteristics_guide_walking_biking_transit_decisions
 
-## Categorical variables
-
-### Sex_majority
-```{r}
-sex_model <- lm(avg_walk_ind ~ sex_majority, data = my_data)
-
-summary(sex_model)
-```
-
-### Race_majority
-```{r}
-race_model <- lm(avg_walk_ind ~ race_majority, data = my_data)
-
-summary(race_model)
-```
-
-Findings---------------------
-
-
-## Multivariate regression
-```{r}
-full_model <- lm(avg_walk_ind ~ pct_asthma + pct_obesity + pct_mental + pct_walk + pct_bike + pct_public + pct_car, my_data)
-
-summary(full_model)
-```
-
-Findings------------------
