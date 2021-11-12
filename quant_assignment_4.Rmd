@@ -1,0 +1,594 @@
+---
+title: "quant_assignment_3"
+author: "Rania Karamallah, MC Abbott, Alex Cardelle"
+date: "11/8/2021"
+output: 
+  rmdformats::downcute
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Research Question
+
+Is there a relationship between mode of transportation to travel to work and different health indicators? How do other demographic characteristics (eg. race and age) factor in, if at all?
+
+# Prior Research
+
+Riggs and Sethi (2020), in examining a quantified, indexed version of "walkability", have determined that neighborhoods scoring high in this category do show increased multimodal/alternative transportation use (namely -- walking, cycling, or transit). With more specificity, Watson et. al (2020) provide a national-level overview that confirms a strong link between high walkability scores and walking itself as a mode of commuting to work throughout the urban areas of the United States. Our research question seeks to confirm these findings through selected census and walkability study data.
+
+# Data
+
+We will be using the following data sets:
+
+* United States American Community Survey (2019)
+* Centers for Disease Control and Prevention: PLACES U.S. Chronic Disease Indicators (2020)
+* United States Environmental Protection Agency: National Walkability Index (2021)
+
+# Variables for Analysis
+
+Continuous
+* Population Percentage with Current Mental Health Issues
+* Population Percentage with Obesity
+* Population Percentage with Current Asthma
+* Percentage of Mode of Transportation to Work
+* Walkability Index Score
+
+Categorical
+* Majority White vs. Non-White
+* Majority Female vs. Not Female
+
+## Sample Definition
+
+Our research will focus on the scale of census tracts in Massachusetts, with a look at adult characteristics and behaviors aggregated to the level of census tracts.
+
+## Load data
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+library(readxl)
+library(knitr)
+library(sf)
+library(gridExtra)
+library(ggthemes)
+library(ggspatial)
+```
+
+## Mode of Transportation
+
+Source: American Community Survey (2019)
+
+* Mode of Transportation
+
+```{r, message = FALSE, results = FALSE, warning = FALSE}
+
+acs_transport <- get_acs(geography = "tract", 
+                        year = 2019,
+                        variables = c(transport_any = "B08301_001E",
+                                      transport_walk = "B08301_019E",
+                                      transport_car = "B08301_002E",
+                                      transport_public = "B08301_010E",
+                                      transport_bike = "B08301_018E",
+                                      transport_taxi = "B08301_016E",
+                                      transport_motorcycle = "B08301_017E",
+                                      transport_other = "B08301_020E"),
+                        state = "MA",
+                        output = "wide",
+                        geometry = FALSE) %>%
+  mutate(pct_walk = transport_walk / transport_any) %>%
+  mutate(pct_car = transport_car / transport_any) %>%
+  mutate(pct_public = transport_public / transport_any) %>%
+  mutate(pct_bike = transport_bike / transport_any) %>%
+  mutate(pct_taxi = transport_taxi / transport_any) %>%
+  mutate(pct_motorcycle = transport_motorcycle / transport_any) %>%
+  mutate(pct_other = transport_other / transport_any)%>%
+  select(GEOID, pct_walk, pct_car, pct_public, pct_bike, pct_taxi, pct_motorcycle, pct_other)
+  
+```
+
+## Demographics
+
+Source: American Community Survey (2019)
+
+* Majority White vs. Non-White (categorical)
+* Majority Female vs. Not Female (categorical)
+
+```{r}
+
+race_majority <- get_acs(geography = "tract", 
+                        year = 2019,
+                        variables = c( total_pop = "B02001_001",
+                                       white_pop = "B02001_002"),
+                        state = "MA",
+                        output = "wide",
+                        geometry = FALSE) %>%
+  mutate(white_majority = case_when(white_popE / total_popE >= .5 ~ "Majority White",
+                          white_popE / total_popE < .5 ~ "Non-Majority White",
+                          TRUE ~ "unknown")) %>%
+  select(GEOID,white_majority)
+
+sex_majority <- get_acs(geography = "tract", 
+                        year = 2019,
+                        variables = c( total_pop = "B01001_001",
+                                       female_pop = "B01001_026"),
+                        state = "MA",
+                        output = "wide",
+                        geometry = FALSE) %>%
+  mutate(female_majority = case_when(female_popE / total_popE >= .5 ~ "Female Majority",
+                          female_popE / total_popE < .5 ~ "Non-Female Majority",
+                          TRUE ~ "unknown")) %>%
+  select(GEOID,female_majority)
+
+```
+
+## U.S. Chronic Disease Indicators
+
+Source: United States Centers for Disease Control and Prevention: PLACES U.S. Chronic Disease Indicators
+
+* Population Percentage with Current Mental Health Issues (continuous)
+* Population Percentage with Obesity (continuous)
+* Population Percentage with Current Asthma (continuous)
+
+```{r}
+Mental_Health <- read_csv('data/PLACES__Local_Data_for_Better_Health__Census_Tract_Data_2020_release.csv') %>%
+  filter(Year == 2018) %>%
+  filter(Short_Question_Text == "Mental Health") %>%
+  filter(StateAbbr == "MA") %>%
+  rename(GEOID = LocationID) %>%
+  group_by(GEOID) %>%
+  rename(pct_mental = Data_Value) %>%
+  select(GEOID, pct_mental, Data_Value_Unit)
+
+Asthma <- read_csv('data/PLACES__Local_Data_for_Better_Health__Census_Tract_Data_2020_release.csv') %>%
+  filter(Year == 2018) %>%
+  filter(Short_Question_Text == "Current Asthma") %>%
+  filter(StateAbbr == "MA") %>%
+  rename(GEOID = LocationID) %>%
+  group_by(GEOID) %>%
+  rename(pct_asthma = Data_Value) %>%
+  select(GEOID, pct_asthma, Data_Value_Unit)
+
+Obesity <- read_csv('data/PLACES__Local_Data_for_Better_Health__Census_Tract_Data_2020_release.csv') %>%
+  filter(Year == 2018) %>%
+  filter(Short_Question_Text == "Obesity") %>%
+  filter(StateAbbr == "MA") %>%
+  rename(GEOID = LocationID) %>%
+  group_by(GEOID) %>%
+  rename(pct_obesity = Data_Value) %>%
+  select(GEOID, pct_obesity, Data_Value_Unit)
+
+```
+## Walkability
+
+Source: United States Environmental Protection Agency: National Walkability Index
+
+* Walkability Index Score
+
+```{r}
+Walkability <- st_read(dsn = "Natl_WI.gdb") %>%
+  filter(STATEFP == "25") %>%
+  select(GEOID10, NatWalkInd, TotPop) %>%
+  mutate(tract = substr(GEOID10, 1, 11)) %>%
+  st_set_geometry(NULL) %>%
+  group_by(tract) %>%
+  summarise(avg_walk_ind = weighted.mean(NatWalkInd, TotPop)) %>%
+  rename(GEOID = tract)
+```
+
+# Assembling the datasets 
+
+```{r, message = FALSE, warning = FALSE}
+data <- left_join(acs_transport, Walkability) %>% 
+  left_join(Asthma) %>%
+  left_join(Obesity) %>%
+  left_join(Mental_Health) %>%
+  left_join(race_majority) %>%
+  left_join(sex_majority) %>%
+  select(GEOID, avg_walk_ind, pct_walk, pct_car, pct_public, pct_bike, pct_taxi, pct_motorcycle, pct_other, pct_asthma, pct_mental, pct_obesity, white_majority, female_majority)
+
+kable(head(data))
+```
+
+# Initial Analysis of Continuous Data
+
+```{r}
+asthma_t_test <- t.test(data$pct_asthma)
+obesity_t_test <- t.test(data$pct_obesity)
+mental_t_test <- t.test(data$pct_mental)
+walkability_t_test <- t.test(data$avg_walk_ind)
+mwalk_t_test <- t.test(data$pct_walk)
+mcar_t_test <- t.test(data$pct_car)
+mpublic_t_test <- t.test(data$pct_public)
+mbike_t_test <- t.test(data$pct_bike)
+mtaxi_t_test <- t.test(data$pct_taxi)
+mmotorcycle_t_test <- t.test(data$pct_motorcycle)
+mother_t_test <- t.test(data$pct_other)
+
+```
+
+```{r}
+
+asthma_quartiles <- quantile(data$pct_asthma, na.rm = TRUE)
+obesity_quartiles <- quantile(data$pct_obesity, na.rm = TRUE)
+mental_quartiles <- quantile(data$pct_mental, na.rm = TRUE)
+
+walk_quartiles <- quantile(data$pct_walk, na.rm = TRUE)
+bike_quartiles <- quantile(data$pct_bike, na.rm = TRUE)
+car_quartiles <- quantile(data$pct_car, na.rm = TRUE)
+taxi_quartiles <- quantile(data$pct_taxi, na.rm = TRUE)
+public_quartiles <- quantile(data$pct_public, na.rm = TRUE)
+motorcycle_quartiles <- quantile(data$pct_motorcycle, na.rm = TRUE)
+other_quartiles <- quantile(data$pct_other, na.rm = TRUE)
+
+```
+
+```{r}
+
+asthma_st_dev <- sd(data$pct_asthma, na.rm = TRUE)
+obesity_st_dev <- sd(data$pct_obesity, na.rm = TRUE)
+mental_st_dev <- sd(data$pct_mental, na.rm = TRUE)
+
+walk_st_dev <- sd(data$pct_walk, na.rm = TRUE)
+bike_st_dev <- sd(data$pct_bike, na.rm = TRUE)
+car_st_dev <- sd(data$pct_car, na.rm = TRUE)
+taxi_st_dev <- sd(data$pct_taxi, na.rm = TRUE)
+public_st_dev <- sd(data$pct_public, na.rm = TRUE)
+motorcycle_st_dev <- sd(data$pct_motorcycle, na.rm = TRUE)
+other_st_dev <- sd(data$pct_other, na.rm = TRUE)
+
+```
+
+
+```{r}
+asthma_hist <- ggplot(data) +
+  geom_histogram(aes(x = pct_asthma),
+                 bins = 30)
+
+obesity_hist <- ggplot(data) +
+  geom_histogram(aes(x = pct_obesity),
+                 bins = 30) +
+  scale_x_continuous(trans = "log")
+
+mental_hist <- ggplot(data) +
+  geom_histogram(aes(x = pct_mental),
+                 bins = 30)
+
+asthma_hist
+
+```
+
+```{r}
+mode_summary <- tibble(
+  Variable = c("Percentage of Workers Who Commute by Walking", 
+               "Percentage of Workers Who Commute by Bike", 
+               "Percentage of Workers Who Commute by Car",
+               "Percentage of Workers Who Commute by Public Transit",
+               "Percentage of Workers Who Commute by Taxi",
+               "Percentage of Workers Who Commute by Motorcycle",
+               "Percentage of Workers Who Commute by Other Means"),
+  `Sample mean` = c((mwalk_t_test$estimate*100),
+                    (mbike_t_test$estimate*100),
+                    (mcar_t_test$estimate*100),
+                    (mpublic_t_test$estimate*100),
+                    (mtaxi_t_test$estimate*100),
+                    (mmotorcycle_t_test$estimate*100),
+                    (mother_t_test$estimate*100)),
+  
+  `Population mean (95% confidence) - low` = 
+    c((mwalk_t_test$conf.int[1]*100),
+      (mbike_t_test$conf.int[1]*100),
+      (mcar_t_test$conf.int[1]*100),
+      (mpublic_t_test$conf.int[1]*100),
+      (mtaxi_t_test$conf.int[1]*100),
+      (mmotorcycle_t_test$conf.int[1]*100),
+      (mother_t_test$conf.int[1]*100)),
+  
+  `Population mean (95% confidence) - high` =
+    c((mwalk_t_test$conf.int[2]*100),
+      (mbike_t_test$conf.int[2]*100),
+      (mcar_t_test$conf.int[2]*100),
+      (mpublic_t_test$conf.int[2]*100),
+      (mtaxi_t_test$conf.int[2]*100),
+      (mmotorcycle_t_test$conf.int[2]*100),
+      (mother_t_test$conf.int[2])*100),
+  
+  Median = c((mwalk_t_test$conf.int[3]*100),
+      (mbike_t_test$conf.int[3]*100),
+      (mcar_t_test$conf.int[3]*100),
+      (mpublic_t_test$conf.int[3]*100),
+      (mtaxi_t_test$conf.int[3]*100),
+      (mmotorcycle_t_test$conf.int[3]*100),
+      (mother_t_test$conf.int[3]*100)),
+  
+  `Interquartile range` = c(((walk_quartiles[4] - walk_quartiles[2])*100),
+                            ((bike_quartiles[4] - bike_quartiles[2])*100),
+                            ((car_quartiles[4] - car_quartiles[2])*100),
+                            ((public_quartiles[4] - public_quartiles[2])*100),
+                            ((taxi_quartiles[4] - taxi_quartiles[2])*100),
+                            ((motorcycle_quartiles[4] - motorcycle_quartiles[2])*100),
+                            ((other_quartiles[4] - other_quartiles[2])*100)),
+  `Standard deviation` = c((walk_st_dev*100), (bike_st_dev*100), (car_st_dev*100), (taxi_st_dev*100), (public_st_dev*100), (motorcycle_st_dev*100), (other_st_dev*100)))
+
+kable(mode_summary, digits = 2)
+
+```
+
+```{r}
+
+pretty_asthma_hist <- asthma_hist +
+  theme_bw() +
+  scale_x_continuous(name = "Percentage of residents with asthma") +
+  scale_y_continuous(name = "Number of tracts") +
+  theme(axis.text.x = element_text(angle = 90))
+
+pretty_obesity_hist <- obesity_hist +
+  theme_bw() +
+  scale_x_continuous(name = "Percentage of residents with obesity") +
+  scale_y_continuous(name = "Number of tracts") +
+  theme(axis.text.x = element_text(angle = 90))
+
+pretty_mental_hist <- mental_hist +
+  theme_bw() +
+  scale_x_continuous(name = "Percentage of residents with poor mental health") +
+  scale_y_continuous(name = "Number of tracts") +
+  theme(axis.text.x = element_text(angle = 90))
+
+grid.arrange(pretty_asthma_hist, pretty_obesity_hist, pretty_mental_hist,
+             ncol = 3)
+
+```
+
+# Initial Analysis of Categorical Data
+
+```{r}
+pct_white <- t.test(data$white_majority == "Majority White")
+pct_nonwhite <-  t.test(data$white_majority == "Non-Majority White")
+
+pct_female <- t.test(data$female_majority == "Female Majority")
+pct_notfemale <-  t.test(data$female_majority == "Non-Female Majority")
+
+```
+
+```{r}
+
+cat_summary_race <- tibble(`Majority Race` = 
+                              c("White",
+                                "Not White"),
+                            `Sample proportion` = 
+                              c(pct_white$estimate * 100,
+                                pct_nonwhite$estimate *100),
+                            `95-percent confidence - low` = 
+                              c(pct_white$conf.int[1] * 100,
+                                pct_nonwhite$conf.int[1] * 100),
+                            `95-percent confidence - high` = 
+                              c(pct_white$conf.int[2] * 100,
+                                pct_nonwhite$conf.int[2] * 100))
+
+kable(cat_summary_race, digits = 2)
+
+```
+
+```{r}
+
+cat_summary_sex <- tibble(`Majority Sex` = 
+                              c("Female",
+                                "Not Female"),
+                            `Sample proportion` = 
+                              c(pct_female$estimate * 100,
+                                pct_notfemale$estimate *100),
+                            `95-percent confidence - low` = 
+                              c(pct_female$conf.int[1] * 100,
+                                pct_notfemale$conf.int[1] * 100),
+                            `95-percent confidence - high` = 
+                              c(pct_female$conf.int[2] * 100,
+                                pct_notfemale$conf.int[2] * 100))
+
+kable(cat_summary_sex, digits = 2)
+
+```
+# Assignment 3 - Regressions
+
+In trying to understand the importance of walkability to health and commuting patterns, we ran a regression analysis for correlation using 'cor.test' and 'age_model', then plotted the data on a graph. Our dependent variable is "walkability" provided through a Massachusetts Census Tracts' walkability score. Our independent variables are divided into two fields: health metrics and commuting choice. For health metrics, we are using the percent of the population afflicted with asthma, obesity, or mental health issues respectively. For commuting choice, we're using the percent of the population that commutes via walking, biking, public transit, or car respectively.
+
+### Walkability and Health Metrics
+
+## Walkability and Asthma
+```{r walkability and asthma}
+
+cor.test(~ avg_walk_ind + pct_asthma, data = data)
+
+age_model <- lm(avg_walk_ind ~ pct_asthma, data = data)
+
+summary(age_model)
+
+```
+
+```{r plot the walkability/asthma, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
+
+ggplot(data) +
+  geom_point(aes(x = avg_walk_ind, y = pct_asthma)) +
+  geom_smooth(aes(x = avg_walk_ind, y = pct_asthma), color = 'red', method = 'lm', se = FALSE) +
+  labs(x = "Walkability Score", 
+       y = "Percent of Pop. with Asthma", 
+       title = "Regression: Walkability Score and Asthma Rates, Correlation: 0.29")
+
+```
+
+For **asthma**, the 95-percent confidence interval for the correlation does not include zero - all values in the interval are positive. Additionally, this finding is supported by the regression, with an R-squared value of 0.08 and a p-value of less than 0.05. This means we can say with 95-percent confidence that higher asthma rates are associated with more walkable census tracts and that it is _**statistically significant**_.
+
+## Walkability and Obesity
+```{r walkability and obesity}
+
+cor.test(~ avg_walk_ind + pct_obesity, data = data)
+
+age_model <- lm(avg_walk_ind ~ pct_obesity, data = data)
+
+summary(age_model)
+
+```
+
+```{r plot the walkability/obesity, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
+ggplot(data) +
+  geom_point(aes(x = avg_walk_ind, y = pct_obesity)) +
+  geom_smooth(aes(x = avg_walk_ind, y = pct_obesity), color = 'red', method = 'lm', se = FALSE) +
+  labs(x = "Walkability Score", 
+       y = "Percent of Pop. with Obesity", 
+       title = "Regression: Walkability Score and Obesity Rates, Correlation: -0.01")
+```
+
+For **obesity**, the 95-percent confidence interval for the correlation includes zero, meaning the direction of the correlation (positive or negative) is uncertain. Additionally, this finding is supported by the regression, with an R-squared value of -0.00052 and a p-value of 0.625. This means we cannot inform with with confidence whether obesity and walkable census tracts are correlated and that this finding's significance is indeterminable with the present evidence.
+
+## Walkability and Mental Health
+```{r walkability and mental}
+
+cor.test(~ avg_walk_ind + pct_mental, data = data)
+
+age_model <- lm(avg_walk_ind ~ pct_mental, data = data)
+
+summary(age_model)
+
+```
+
+```{r plot the walkability/mental, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
+ggplot(data) +
+  geom_point(aes(x = avg_walk_ind, y = pct_mental)) +
+  geom_smooth(aes(x = avg_walk_ind, y = pct_mental), color = 'red', method = 'lm', se = FALSE) +
+  labs(x = "Walkability Score", 
+       y = "Percent of Pop. with Mental Health Issues", 
+       title = "Regression: Walkability Score and Mental Health Rates, Correlation: 0.33")
+```
+
+For **mental health**, the 95-percent confidence interval for the correlation does not include zero - all values in the interval are positive. Additionally, this finding is supported by the regression, with an R-squared value of 0.11 and a p-value of less than 0.05. This means we can say with 95-percent confidence that higher incidence of mental health issues are associated with more walkable census tracts and that this finding is _**statistically significant**_.
+
+## Walkability and Commute Choice
+
+## Walkability and Commuting by Walking
+```{r walkability and commuting by walk}
+
+cor.test(~ avg_walk_ind + pct_walk, data = data)
+
+age_model <- lm(avg_walk_ind ~ pct_walk, data = data)
+
+summary(age_model)
+
+```
+
+```{r plot the walkability/walk, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
+ggplot(data) +
+  geom_point(aes(x = avg_walk_ind, y = pct_walk)) +
+  geom_smooth(aes(x = avg_walk_ind, y = pct_walk), color = 'red', method = 'lm', se = FALSE) +
+  labs(x = "Walkability Score", 
+       y = "Percent of Pop. Commuting Via Walking", 
+       title = "Regression: Walkability Score and Walking Use, Correlation: 0.39")
+```
+
+For **commuting by walking**, the 95-percent confidence interval for the correlation does not include zero - all values in the interval are positive. Additionally, this finding is supported by the regression, with an R-squared value of 0.15 and a p-value of less than 0.05. This means we can say with 95-percent confidence that higher commuting rates by walking are associated with more walkable census tracts and that this finding is _**statistically significant**_.
+
+## Walkability and Commuting by Biking
+```{r walkability and commuting by biking}
+
+cor.test(~ avg_walk_ind + pct_bike, data = data)
+
+age_model <- lm(avg_walk_ind ~ pct_bike, data = data)
+
+summary(age_model)
+
+```
+
+```{r plot the walkability/bike, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
+ggplot(data) +
+  geom_point(aes(x = avg_walk_ind, y = pct_bike)) +
+  geom_smooth(aes(x = avg_walk_ind, y = pct_bike), color = 'blue', method = 'lm', se = FALSE) +
+  labs(x = "Walkability Score", 
+       y = "Percent of Pop. Commuting Via Biking", 
+       title = "Regression: Walkability Score and Biking Use, Correlation: 0.34")
+```
+
+For **commuting by biking**, the 95-percent confidence interval for the correlation does not include zero - all values in the interval are positive. Additionally, this finding is supported by the regression, with an R-squared value of 0.11 and a p-value of less than 0.05. This means we can say with 95-percent confidence that higher commuting rates by biking are associated with more walkable census tracts and that this finding is _**statistically significant**_.
+
+## Walkability and Commuting by Public Transit
+```{r walkability and commuting by transit}
+
+cor.test(~ avg_walk_ind + pct_public, data = data)
+
+age_model <- lm(avg_walk_ind ~ pct_public, data = data)
+
+summary(age_model)
+
+```
+
+```{r plot the walkability/transit, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
+ggplot(data) +
+  geom_point(aes(x = avg_walk_ind, y = pct_public)) +
+  geom_smooth(aes(x = avg_walk_ind, y = pct_public), color = 'green', method = 'lm', se = FALSE) +
+  labs(x = "Walkability Score", 
+       y = "Percent of Pop. Commuting Via Transit", 
+       title = "Regression: Walkability Score and Transit Use, Correlation: 0.46")
+```
+
+For **commuting by transit**, the 95-percent confidence interval for the correlation does not include zero - all values in the interval are positive. Additionally, this finding is supported by the regression, with an R-squared value of 0.21 and a p-value of less than 0.05. This means we can say with 95-percent confidence that higher commuting rates by transit are associated with more walkable census tracts and that this finding is _**statistically significant**_.
+
+## Walkability and Commuting by Car
+```{r walkability and commuting by car}
+
+cor.test(~ avg_walk_ind + pct_car, data = data)
+
+age_model <- lm(avg_walk_ind ~ pct_car, data = data)
+
+summary(age_model)
+
+```
+
+```{r plot the walkability/car, echo=TRUE, warning=FALSE, message = FALSE, results='hide'}
+ggplot(data) +
+  geom_point(aes(x = avg_walk_ind, y = pct_car)) +
+  geom_smooth(aes(x = avg_walk_ind, y = pct_car), color = 'orange', method = 'lm', se = FALSE) +
+  labs(x = "Walkability Score", 
+       y = "Percent of Pop. Commuting Via Car", 
+       title = "Regression: Walkability Score and Car Use, Correlation: -0.51")
+```
+
+For **commuting by car**, the 95-percent confidence interval for the correlation does not include zero - all values in the interval are negative. Additionally, this finding is supported by the regression, with an R-squared value of 0.26 and a p-value of less than 0.05. This means we can say with 95-percent confidence that lower commuting rates by car are associated with more walkable census tracts and that this finding is _**statistically significant**_.
+
+# Resources
+
+Centers for Disease Control and Prevention, "PLACES: Local Data for Better Health, Census Tract Data 2020 release". 2020.
+https://chronicdata.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-Census-Tract-D/cwsq-ngmh
+
+United States Census Bureau. American Community Survey, 5-year estimates. 2019.
+
+Watson et al., "Associations between the National Walkability Index and walking among US Adults - National Health Interview Survey, 2015". 2020.
+https://pubmed.ncbi.nlm.nih.gov/32389677/
+
+Riggs, William Warren and Suresh Andrew Sethi, "Multimodal travel behaviour, walkability indices, and social mobility: how neighbourhood walkability, income and household characteristics guide walking, biking & transit decisions". 2020.
+https://www.researchgate.net/publication/344647424_Multimodal_travel_behaviour_walkability_indices_and_social_mobility_how_neighbourhood_walkability_income_and_household_characteristics_guide_walking_biking_transit_decisions
+
+## Categorical variables
+
+### Sex_majority
+```{r}
+sex_model <- lm(avg_walk_ind ~ sex_majority, data = my_data)
+
+summary(sex_model)
+```
+
+### Race_majority
+```{r}
+race_model <- lm(avg_walk_ind ~ race_majority, data = my_data)
+
+summary(race_model)
+```
+
+Findings---------------------
+
+
+## Multivariate regression
+```{r}
+full_model <- lm(avg_walk_ind ~ pct_asthma + pct_obesity + pct_mental + pct_walk + pct_bike + pct_public + pct_car, my_data)
+
+summary(full_model)
+```
+
+Findings------------------
